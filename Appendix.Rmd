@@ -1,0 +1,1132 @@
+---
+title:  ""
+output: pdf_document
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+```
+
+\pagebreak
+
+# Exploratory Data Analysis
+
+
+```{r}
+# Preparing data
+dat <- read.csv("pollutants.csv") #Load data
+dat <- dat[,-1] ## remove column X1
+
+# Changing percentages of white blood cells to units of white blood cell component
+dat$lymphocyte_pct <- dat$lymphocyte_pct/100 * dat$whitecell_count
+dat$monocyte_pct <- dat$monocyte_pct/100 * dat$whitecell_count
+dat$eosinophils_pct <- dat$eosinophils_pct/100 * dat$whitecell_count
+dat$basophils_pct <- dat$basophils_pct/100 * dat$whitecell_count
+dat$neutrophils_pct <- dat$neutrophils_pct/100 * dat$whitecell_count
+dat <- subset(dat, select=-whitecell_count)
+
+# Correlation Plot
+library(dlookr)
+library(corrplot)
+library(RColorBrewer)
+
+dat2 <- data.frame(matrix(data=NA))
+for (i in 1:ncol(dat)){
+  if(length(unique(dat[,i]))> 5) {
+    print(i)
+    dat2 <- cbind(dat2, dat[,i])
+    names(dat2)[ncol(dat2)] <- names(dat)[i]}}
+
+dat2 <- subset(dat2, select = -1)
+describe(dat2)
+M <-cor(dat)
+corrplot(M, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"), tl.cex=0.5)
+
+
+# Separating categorical index with non-categorical index
+categorical_index <- c();
+non_categorical_index <- c();
+for(i in 1:ncol(dat)) {
+  if(length(unique(dat[,i])) > 5) {
+    non_categorical_index <- c(non_categorical_index, i)
+  } else {
+    categorical_index <- c(categorical_index, i)
+  }
+}
+
+# Box and whisker for non-categorical
+library(ggplot2)
+par(mfrow=c(1,6))
+for (i in non_categorical_index){
+  boxplot(dat[i],
+          main = colnames(dat[i]),
+          col = "orange",
+          border = "black"
+  )
+}
+name <- c()
+for (j in 1:ncol(dat)){
+  name <- append(name, colnames(dat[j]))
+}
+temp <- data.matrix(dat) #to make data.frame into numerical
+
+
+# Histograms for non-categorical data
+par(mfrow=c(2,5)) #or (2,4) if still have space
+for(i in 1:length(non_categorical_index)) {
+  m <- round(mean(dat[,non_categorical_index[i]]), 2)
+  hist(dat[,non_categorical_index[i]], ylab="freq", xlab=colnames(dat)[non_categorical_index[i]], 
+       main=paste("mean= ",m))
+  abline(v=m, col="red")
+}
+
+# Bar graphs for categorical data 
+par(mfrow=c(2,2))
+barplot(table(dat$male),ylab="Freq", col= "grey", names=c("F", "M"), main="Male")
+barplot(table(dat$edu_cat),ylab="Freq", col= "grey", main="edu_cat")
+barplot(table(dat$race_cat),ylab="Freq", col= "grey", main="race_cat",names=c("O", "M","B","W"))
+barplot(table(dat$smokenow),ylab="Freq", col= "grey", main="smokenow")
+
+# Boxplots for categorical data
+yfemale <- dat$length[dat$male==0]
+ymale <- dat$length[dat$male==1]
+boxplot(yfemale,ymale,col="cyan",names=c("Females","Males"), main="male")
+
+y1 <- dat$length[dat$edu_cat==1]
+y2 <- dat$length[dat$edu_cat==2]
+y3 <- dat$length[dat$edu_cat==3]
+y4 <- dat$length[dat$edu_cat==4]
+boxplot(y1,y2,y3,y4, col = "cyan", names=c("1","2","3","4"), main="edu_cat")
+mean(dat$length[dat$edu_cat==1])
+mean(dat$length[dat$edu_cat==4])
+
+yother <- dat$length[dat$race_cat==1]
+ymexican <- dat$length[dat$race_cat==2]
+yblack <- dat$length[dat$race_cat==3]
+ywhite <- dat$length[dat$race_cat==4]
+boxplot(yother,ymexican,yblack,ywhite, col = "cyan", names=c("O", "M","B","W"), main="race_cat")
+
+ynosmokenow <- dat$length[dat$smokenow==0]
+ysmokenow <- dat$length[dat$smokenow==1]
+boxplot(ynosmokenow, ysmokenow, col = "cyan", names=c("not", "smoke"), main="smokenow")
+
+
+# Data without categorical covariates
+
+dat_no_cov <- data.frame(matrix(data=NA))
+for (i in 1:ncol(dat)){
+  if(length(unique(dat[,i])) > 5) {
+    print(i)
+    dat_no_cov <- cbind(dat_no_cov, dat[,i])
+    names(dat_no_cov)[ncol(dat_no_cov)] <- names(dat)[i]
+  }
+}
+
+dat_no_cov <- subset(dat2, select = -1)
+
+# Descriptive statistics for non-categorical: 
+# n: number of observations excluding missing values
+# na: number of missing values
+# mean: arithmetic average
+# sd: standard deviation 
+# se_mean: standard error mean. sd/sqrt(n)
+# IQR: interquartile range (Q3-Q1)
+# skewness: skewness
+# kurtosis: kurtosis
+# p25: Q1. 25% percentile
+# p50: median. 50% percentile
+# p75: Q3. 75% percentile
+# p01, p05, p10, p20, p30 : 1%, 5%, 20%, 30% percentiles
+# p40, p60, p70, p80 : 40%, 60%, 70%, 80% percentiles
+# p90, p95, p99, p100 : 90%, 95%, 99%, 100% percentiles
+
+library(dlookr)
+describe(dat_no_cov)
+
+# Min for non categorical
+for (i in non_categorical_index){
+  y <- min(temp[,i])
+  print(paste("Smallest observation of", name[i], "is", y))
+}
+
+# Max for non categorical
+for (i in non_categorical_index){
+  y <- max(temp[,i])
+  print(paste("Largest observation of", name[i], "is", y))
+}
+
+
+
+```
+
+
+# Modeling 
+
+## Applying LASSO as well as stepwise selction using AIC and BIC to select models.
+```{r}
+set.seed(1)
+library(glmnet)
+
+dat <- read.csv("pollutants.csv")
+dat <- dat[,-1]
+# Changing percentages to numbers
+dat$lymphocyte_pct <- dat$lymphocyte_pct/100 * dat$whitecell_count
+dat$monocyte_pct <- dat$monocyte_pct/100 * dat$whitecell_count
+dat$eosinophils_pct <- dat$eosinophils_pct/100 * dat$whitecell_count
+dat$basophils_pct <- dat$basophils_pct/100 * dat$whitecell_count
+dat$neutrophils_pct <- dat$neutrophils_pct/100 * dat$whitecell_count
+dat <- subset(dat, select=-whitecell_count)
+
+# Changing from numeric to character for categorical covariates
+dat$edu_cat <- as.character(dat$edu_cat)
+dat$race_cat <- as.character(dat$race_cat)
+dat$male <- as.character(dat$male)
+dat$smokenow <- as.character(dat$smokenow)
+
+# Included all possible by-one product interactions (i.e., squared)
+
+# Stepwise Selection (AIC)
+M0 <- lm(length~1, data=dat) # minimal model
+Mfull <- lm(length~.^2, data=dat) # full model
+Mstart <- lm(length~., data=dat) # starting model
+
+Maic_sqr <- step(object = Mstart, scope = list(lower = M0, upper= Mfull),
+              direction = "both", trace = 0) 
+summary(Maic_sqr)
+
+# Stepwise Selection (BIC)
+Mbic_sqr <- step(object = Mstart, scope = list(lower = M0, upper= Mfull),
+                 k = log(nrow(dat)), direction = "both", trace = 0) 
+summary(Mbic_sqr)
+
+# LASSO
+X <- model.matrix(Mfull)[,-1]
+Y <- dat$length
+M_lasso_sqr <- cv.glmnet(x = X, y = Y, alpha = 1)
+
+summary(M_lasso_sqr)
+
+# No interactions
+
+# Stepwise Selection (AIC)
+M0ori <- lm(length~1, data=dat) #minimal model
+Mfull_ori <- lm(length~., data=dat) #full model
+
+Maic_ori <- step(object = Mstart, scope = list(lower = M0ori, upper= Mfull_ori),
+              direction = "both", trace = 0) 
+summary(Maic_ori)
+
+# Stepwise Selection (BIC)
+Mbic_ori <- step(object = Mstart, scope = list(lower = M0ori, upper= Mfull_ori),
+                 k = log(nrow(dat)), direction = "both", trace = 0) 
+summary(Mbic_ori)
+
+# LASSO
+X1 <- model.matrix(Mfull_ori)[,-1]
+Y1 <- dat$length
+M_lasso_ori <- cv.glmnet(x = X1, y = Y1, alpha = 1)
+
+summary(M_lasso_ori)
+
+```
+
+## Applying LASSO as well as stepwise selection using AIC and BIC to select models. Data used here only contain significant covariates.
+
+```{r}
+library(glmnet)
+
+# Assessing the p-value
+m1 <- lm(length ~ POP_PCB1, data=dat)
+summary(m1)
+m2 <- lm(length ~ POP_PCB2, data=dat)
+summary(m2)
+m3 <- lm(length ~ POP_PCB3, data=dat)
+summary(m3)
+m4 <- lm(length ~ POP_PCB4, data=dat)
+summary(m4)
+m5 <- lm(length ~ POP_PCB5, data=dat)
+summary(m5)
+m6 <- lm(length ~ POP_PCB6, data=dat)
+summary(m6)
+m7 <- lm(length ~ POP_PCB7, data=dat)
+summary(m7)
+m8 <- lm(length ~ POP_PCB8, data=dat)
+summary(m8)
+m9 <- lm(length ~ POP_PCB9, data=dat)
+summary(m9)
+m10 <- lm(length ~ POP_PCB10, data=dat)
+summary(m10)
+m11 <- lm(length ~ POP_PCB11, data=dat)
+summary(m11)
+m12 <- lm(length ~ POP_dioxin1, data=dat)
+summary(m12)
+m13 <- lm(length ~ POP_dioxin2, data=dat)
+summary(m13)
+m14 <- lm(length ~ POP_dioxin3, data=dat)
+summary(m13)
+m15 <- lm(length ~ POP_furan1, data=dat)
+summary(m14)
+m16 <- lm(length ~ POP_furan2, data=dat)
+summary(m15)
+m17 <- lm(length ~ POP_furan3, data=dat)
+summary(m16)
+m18 <- lm(length ~ POP_furan4, data=dat)
+summary(m17) #not significant
+m19 <- lm(length ~ lymphocyte_count, data=dat)
+summary(m19) #not significant
+m20 <- lm(length ~ monocyte_count, data=dat)
+summary(m20) #not significant
+m21 <- lm(length ~ eosinophils_count, data=dat)
+summary(m21) #not significant
+m22 <- lm(length ~ basophils_count, data=dat)
+summary(m22) #not significant
+m23 <- lm(length ~ neutrophils_count, data=dat)
+summary(m23) #not significant
+m24 <- lm(length ~ BMI, data=dat)
+summary(m24) #not significant
+m25 <- lm(length ~ factor(edu_cat), data=dat)
+summary(m25) 
+m26 <- lm(length ~ factor(race_cat), data=dat)
+summary(m26) #estimated mean length between race_cat1 and race_cat2,race_cat3 not significant; overall significant
+m27 <- lm(length ~ factor(male), data=dat)
+summary(m27) 
+m28 <- lm(length ~ ageyrs, data=dat)
+summary(m28)
+m29 <- lm(length ~ yrssmoke, data=dat)
+summary(m29)
+m30 <- lm(length ~ factor(smokenow), data=dat)
+summary(m30)
+m31 <- lm(length ~ ln_lbxcot, data=dat)
+summary(m31)
+m32 <- lm(length ~ whitecell_count, data=dat)
+summary(m32) #not significant
+
+# removing whitecell_count for independence and scale reasons
+dat <- subset(dat, select=-whitecell_count)
+# OR dat <- subset(dat, select = -grep("whitecell_count", colnames(dat)))
+
+# removing non-significant non-categorical covariates from the data 
+dat <- subset(dat, select=-POP_furan4)
+dat <- subset(dat, select=-lymphocyte_count)
+dat <- subset(dat, select=-monocyte_count)
+dat <- subset(dat, select=-eosinophils_count)
+dat <- subset(dat, select=-basophils_count)
+dat <- subset(dat, select=-neutrophils_count)
+dat <- subset(dat, select=-BMI)
+
+# checking if all combinations are available
+table(dat[c("edu_cat", "race_cat")])
+table(dat[c("edu_cat", "male")])
+table(dat[c("edu_cat", "smokenow")])    
+table(dat[c("race_cat", "male")])    
+table(dat[c("race_cat", "smokenow")])    
+table(dat[c("male", "smokenow")])    
+
+# changing from numeric to character for categorical covariates
+dat$edu_cat <- as.character(dat$edu_cat)
+dat$race_cat <- as.character(dat$race_cat)
+dat$male <- as.character(dat$male)
+dat$smokenow <- as.character(dat$smokenow)
+
+# removing non-significant categorical covariates from data (i.e. model matrix here)
+mMax_allSig <- lm(length ~ ., data=dat)
+X_allSig <- model.matrix(mMax_allSig)
+X_allSig <- X_allSig[,-grep("race_cat2", colnames(X_allSig))]
+X_allSig <- X_allSig[,-grep("race_cat3", colnames(X_allSig))]
+
+# making max and min model for covariates that are significant
+X_allSig <- data.frame(X_allSig)[,-1]
+length <- dat[,grep("length", colnames(dat))]
+X_allSig <-cbind(length, X_allSig)
+mMax_allSig <- lm(length ~ ., data=X_allSig)
+mMax_allSig_sq <- lm(length ~ (.)^2, data=X_allSig)
+M0 <- lm(length ~ 1, data=dat)
+
+
+# No interactions
+
+# Stepwise Selection (AIC)
+Mstart <- lm(length ~ ., data=X_allSig)
+MallSigAIC <- step(object = Mstart,
+              scope = list(lower = M0, upper = mMax_allSig),
+              direction = "both", trace = 0, k = 2)
+
+summary(MallSigAIC)
+
+# Stepwise Selection (BIC)
+MallSigBIC <- step(object = Mstart,
+                       scope = list(lower = M0, upper = mMax_allSig),
+                       direction = "both", trace = 0, k = log(nrow(dat)))
+
+summary(MallSigBIC)
+
+#LASSO
+
+X <- model.matrix(mMax_allSig)[,-1] ## get covariates
+Y <- dat$length ## get outcome
+MallSigLASSO <- cv.glmnet(x=X,y=Y,alpha=1)
+plot(MallSigLASSO)
+coef(MallSigLASSO, s = "lambda.min")## alternatively could use "lambda.1se"
+# MSPE of the model
+mspe_model_lasso <- MallSigLASSO$cvm[MallSigLASSO$lambda == MallSigLASSO$lambda.min]
+
+
+# Included all possible by-one product interactions (i.e., squared)
+
+# Stepwise Selection (AIC)
+MallSig_sqAIC <- step(object = Mstart,
+                       scope = list(lower = M0, upper = mMax_allSig_sq),
+                       direction = "both", trace = 0, k = 2)
+
+summary(MallSig_sqAIC)
+
+# Stepwise Selection (BIC)
+MallSig_sqBIC <- step(object = Mstart,
+                          scope = list(lower = M0, upper = mMax_allSig_sq),
+                          direction = "both", trace = 0, k = log(nrow(dat)))
+
+summary(MallSig_sqBIC)
+
+#LASSO
+
+X <- model.matrix(mMax_allSig_sq)[,-1] ## get covariates
+Y <- dat$length ## get outcome
+MallSig_sqLASSO <- cv.glmnet(x=X,y=Y,alpha=1)
+plot(MallSig_sqLASSO)
+coef(MallSig_sqLASSO, s = "lambda.min")## alternatively could use "lambda.1se"
+# MSPE of the model
+mspe_modelsq_lasso <- MallSig_sqLASSO$cvm[MallSig_sqLASSO$lambda == MallSig_sqLASSO$lambda.min]
+
+```
+
+
+#Checking Assumptions of Linear Regression
+
+## Assessing Linearity
+
+## Models based on the original data
+
+```{r}
+
+```
+
+## Models based on data containing only significant covariates.
+
+```{r}
+# AIC
+for(i in 2:length(MallSigAIC$coefficients)) {
+  index <- match(names(MallSigAIC$coefficients)[i], colnames(X_allSig))
+  print(index)
+  
+  tempdat <- subset(X_allSig, select = c(-1,-index))
+  M_y <- lm(X_allSig[,1] ~ ., tempdat) # regress y on other covariates
+  M_xstar <- lm(X_allSig[,index] ~ ., tempdat) # regress x* on other covariates
+  
+  plot(y=residuals(M_y), x=residuals(M_xstar), 
+       xlab = colnames(X_allSig)[index], ylab="length")
+}
+
+for(i in 2:length(MallSig_sqAIC$coefficients)) {
+  index <- match(names(MallSig_sqAIC$coefficients)[i], colnames(X_allSig_sq))
+  print(index)
+  
+  tempdat <- subset(X_allSig_sq, select = c(-1,-index))
+  M_y <- lm(X_allSig_sq[,1] ~ ., tempdat) # regress y on other covariates
+  M_xstar <- lm(X_allSig_sq[,index] ~ ., tempdat) # regress x* on other covariates
+  
+  plot(y=residuals(M_y), x=residuals(M_xstar), 
+       xlab = colnames(X_allSig_sq)[index], ylab="length")
+}
+
+# BIC squared
+for(i in 2:length(MallSigBIC$coefficients)) {
+  index <- match(names(MallSigBIC$coefficients)[i], colnames(X_allSig))
+  print(index)
+  
+  tempdat <- subset(X_allSig, select = c(-1,-index))
+  M_y <- lm(X_allSig[,1] ~ ., tempdat) # regress y on other covariates
+  M_xstar <- lm(X_allSig[,index] ~ ., tempdat) # regress x* on other covariates
+  
+  plot(y=residuals(M_y), x=residuals(M_xstar), 
+       xlab = colnames(X_allSig)[index], ylab="length")
+}
+
+#LASSO
+
+```
+
+
+## Assessing Normality 
+
+## Models based on the original data
+
+```{r}
+dat <- read.csv("pollutants.csv")
+dat <- dat[,-1]
+# Changing percentages to numbers
+dat$lymphocyte_pct <- dat$lymphocyte_pct/100 * dat$whitecell_count
+dat$monocyte_pct <- dat$monocyte_pct/100 * dat$whitecell_count
+dat$eosinophils_pct <- dat$eosinophils_pct/100 * dat$whitecell_count
+dat$basophils_pct <- dat$basophils_pct/100 * dat$whitecell_count
+dat$neutrophils_pct <- dat$neutrophils_pct/100 * dat$whitecell_count
+dat <- subset(dat, select=-whitecell_count)
+
+#changing from numeric to character for categorical covariates
+dat$edu_cat <- as.character(dat$edu_cat)
+dat$race_cat <- as.character(dat$race_cat)
+dat$male <- as.character(dat$male)
+dat$smokenow <- as.character(dat$smokenow)
+
+#data where categorical is split
+newdat <- lm(length ~ ., data=dat)
+model.matrix(newdat)
+newdat <- lm(length ~ ., data=dat)[-1]
+newdat <- data.frame(cbind( dat$length, newdat))
+
+
+# AIC (with interactions)
+
+## residuals
+res1 <- resid(Maic_sqr) # raw residuals
+stud1 <- res1/(sigma(Maic_sqr)*sqrt(1-hatvalues(Maic_sqr))) # studentized residuals
+
+## plot distribution of studentized residuals
+hist(stud1,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals (Maic_sqr)")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+
+## qqplot of studentized residuals
+qqnorm(stud1, main= "Normal Q-Q Plot (Maic_sqr)")
+abline(0,1) # add 45 degree line
+
+# BIC (with interactions)
+
+## residuals
+res2 <- resid(Mbic_sqr) # raw residuals
+stud2 <- res2/(sigma(Mbic_sqr)*sqrt(1-hatvalues(Mbic_sqr))) # studentized residuals
+
+## plot distribution of studentized residuals
+hist(stud2,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals (Mbic_sqr)")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+
+## qqplot of studentized residuals
+qqnorm(stud2, main= "Normal Q-Q Plot (Mbic_sqr)")
+abline(0,1) # add 45 degree line
+
+#jgn lupa bro
+# the residuals doesn't work
+# LASSO (with interactions)
+
+#harus cari residual lasso gengs
+#M_lasso_sqr_lm <- lm(data=dat, formula = length~ageyrs+POP_PCB6*edu_cat3)
+## residuals
+#res3 <- resid(M_lasso_sqr) # raw residuals
+#stud3 <- res1/(sigma(M_lasso_sqr)*sqrt(1-hatvalues(M_lasso_sqr))) # studentized residuals
+
+## plot distribution of studentized residuals
+#hist(stud3,breaks=12,
+#     probability=TRUE,xlim=c(-4,4),
+#     xlab="Studentized Residuals",
+#     main="Distribution of Residuals (M_lasso_sqr)")
+#grid <- seq(-3.5,3.5,by=0.05)
+#lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+
+## qqplot of studentized residuals
+#qqnorm(stud3, main= "Normal Q-Q Plot (M_lasso_sqr)")
+#abline(0,1) # add 45 degree line
+
+# AIC (without interactions)
+
+## residuals
+res4 <- resid(Maic_ori) # raw residuals
+stud4 <- res1/(sigma(Maic_ori)*sqrt(1-hatvalues(Maic_ori))) # studentized residuals
+
+## plot distribution of studentized residuals
+hist(stud4,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals (Maic_sqr_ori)")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+
+## qqplot of studentized residuals
+qqnorm(stud4, main= "Normal Q-Q Plot (Maic_sqr_ori)")
+abline(0,1) # add 45 degree line
+
+# BIC (without interactions)
+
+## residuals
+res5 <- resid(Mbic_ori) # raw residuals
+stud5 <- res5/(sigma(Mbic_ori)*sqrt(1-hatvalues(Mbic_ori))) # studentized residuals
+
+## plot distribution of studentized residuals
+hist(stud5,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals (Mbic_sqr_ori)")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+
+## qqplot of studentized residuals
+qqnorm(stud5, main= "Normal Q-Q Plot (Mbic_sqr_ori)")
+abline(0,1) # add 45 degree line
+
+#jgn lupa
+# LASSO (without interactions)
+
+```
+
+## Models based on data containing only significant covariates.
+
+```{r}
+
+#residual
+res_MallSigAIC <- resid(MallSigAIC)
+res_MallSig_sqAIC<-resid(MallSig_sqAIC)
+res_MallSigBIC <- resid(MallSigBIC)
+res_MallSig_sqBIC<-resid(MallSig_sqBIC)
+#cont'
+X<-model.matrix(mMax_allSig)[,-1]
+#predict(MallSigLASSO, test_matrix, s = 'lambda.min')
+res_MallSigLASSO<-dat$length-predict(MallSigLASSO, newx=X, s = "lambda.min")
+X<-model.matrix(mMax_allSig_sq)[,-1]
+res_MallSig_sqLASSO<-dat$length-predict(MallSig_sqLASSO, newx=X, s = "lambda.min")
+pred<-predict(MallSig_sqLASSO, newx=X, s = "lambda.min")
+
+
+#studentized residuals
+studres_MallSigAIC <- res_MallSigAIC/(sigma(MallSigAIC)*sqrt(1-hatvalues(MallSigAIC)))
+studres_MallSig_sqAIC <- res_MallSig_sqAIC/(sigma(MallSig_sqAIC)*sqrt(1-hatvalues(MallSig_sqAIC)))
+studres_MallSigBIC <- res_MallSigBIC/(sigma(MallSigBIC)*sqrt(1-hatvalues(MallSigBIC)))
+studres_MallSig_sqBIC <- res_MallSig_sqBIC/(sigma(MallSig_sqBIC)*sqrt(1-hatvalues(MallSig_sqBIC)))
+
+#AIC
+## plot distribution of studentized residuals
+hist(studres_MallSigAIC,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals\n. allSig AIC")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+## qqplot of studentized residuals
+qqnorm(studres_MallSigAIC, main= "Normal Q-Q Plot\n. allSig AIC")
+abline(0,1) # add 45 degree line
+
+## plot distribution of studentized residuals
+hist(studres_MallSig_sqAIC,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals\n.^2 allsig AIC")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+## qqplot of studentized residuals
+qqnorm(studres_MallSig_sqAIC, main= "Normal Q-Q Plot\n.^2 allSig AIC")
+abline(0,1) # add 45 degree line
+
+#BIC
+## plot distribution of studentized residuals
+hist(studres_MallSigBIC,breaks=12,
+     probability=TRUE,xlim=c(-4,4),
+     xlab="Studentized Residuals",
+     main="Distribution of Residuals\n./.^2 allSig BIC")
+grid <- seq(-3.5,3.5,by=0.05)
+lines(x=grid,y=dnorm(grid),col="blue") # add N(0,1) pdf
+## qqplot of studentized residuals
+qqnorm(studres_MallSigBIC, main= "Normal Q-Q Plot\n./.^2 allSig BIC")
+abline(0,1) # add 45 degree line
+
+#LASSO
+
+```
+
+
+# Assessing Heteroskedasticity 
+
+## Models based on the original data
+
+```{r}
+## plot of residuals vs fitted values
+
+# AIC (with interactions)
+plot(resid(Maic_sqr)~fitted(Maic_sqr), 
+     xlab="Fitted Vals",
+     ylab="Residuals",
+     main="Residuals vs Fitted \n AIC squared")
+abline(h=0, col="red")
+
+# BIC (with interactions)
+plot(resid(Mbic_sqr)~fitted(Mbic_sqr), 
+     xlab="Fitted Vals",
+     ylab="Residuals",
+     main="Residuals vs Fitted \n BIC squared")
+abline(h=0, col="red")
+
+# LASSO (with interactions)
+
+# AIC (without interactions)
+plot(resid(Maic_sqr_ori)~fitted(Maic_sqr_ori), 
+     xlab="Fitted Vals",
+     ylab="Residuals",
+     main="Residuals vs Fitted \n AIC original")
+abline(h=0, col="red")
+
+# BIC (without interactions)
+plot(resid(Mbic_sqr_ori)~fitted(Mbic_sqr_ori), 
+     xlab="Fitted Vals",
+     ylab="Residuals",
+     main="Residuals vs Fitted \n BIC original")
+abline(h=0, col="red")
+
+# LASSO (without interactions)
+
+```
+
+## Models based on data containing only significant covariates.
+
+```{r}
+
+#AIC
+## plot of studentized residuals vs fitted values
+plot(studres_MallSigAIC~fitted(MallSigAIC), #fitted/predict will output the same things in lm
+     xlab="Fitted Vals",
+     ylab="Studentized Residuals",
+     main="Stud.Residuals vs Fitted\n. allSig AIC")
+
+plot(res_MallSig_sqAIC~fitted(MallSig_sqAIC),
+     xlab="Fitted Vals",
+     ylab="Studentized Residuals",
+     main="Residuals vs Fitted\n.^2 allSig AIC")
+
+#BIC
+plot(res_MallSigBIC~fitted(MallSigBIC),
+     xlab="Fitted Vals",
+     ylab="Studentized Residuals",
+     main="Residuals vs Fitted\n./.^2 allSig BIC")
+
+#LASSO
+
+```
+
+
+# MSPE 
+
+## Models based on the original data
+
+```{r}
+
+# LASSO (with interactions)
+
+## get data
+M0 <- lm(length~.^2, data=dat)
+X <- model.matrix(M0)[,-1] ## get covariates
+y <- dat$length  ## get outcome
+
+## split into test and train
+ntrain <- 764 
+train_id <- 1:ntrain
+X_train <- X[train_id,] 
+X_test <- X[-train_id,]
+y_train <- y[train_id]
+y_test <- y[-train_id]
+
+## fit with crossval
+cvfit_lasso <-  cv.glmnet(x=X_train,y=y_train,alpha = 1)
+
+## plot MSPEs by lambda
+plot(cvfit_lasso, main= "M_lasso_sqr")
+
+## estimated betas for minimum lambda 
+#coef(cvfit_lasso, s = "lambda.min")## alternatively could use "lambda.1se"
+
+## predictions
+pred_lasso <- predict(cvfit_lasso,newx=X_test,  s="lambda.min")
+
+## MSPE in test set
+MSPE_lasso <- mean((pred_lasso-y_test)^2)
+
+print(paste("MSPE for LASSO (with interactions) is", MSPE_lasso))
+
+
+# AIC (with interactions) (k-fold)
+
+M1 <- Maic_sqr
+# number of cross-validation replications
+Kfolds <- 12
+
+ntot <- nrow(dat) # total number of observations
+
+hsbm <- dat[sample(ntot),] # permute rows
+hsbm$index <- rep(1:Kfolds,each=ntot/Kfolds)
+
+mspe1 <- rep(NA, Kfolds) # mspe for M1
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbm$index!=ii) # training observations
+  
+    # using R functions
+    M1.cv <- update(M1, subset = train.ind)
+    # cross-validation residuals
+    M1.res <- hsbm$length[-train.ind] - # test observations
+      predict(M1.cv, newdata = hsbm[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe1[ii] <- mean(M1.res^2)
+    
+  }
+
+print(paste("MSPE for AIC (with interactions) is", mean(mspe1)))
+
+
+# BIC (with interactions) (k-fold)
+
+M2 <- Mbic_sqr
+
+mspe2 <- rep(NA, Kfolds) # mspe for M2
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbm$index!=ii) # training observations
+  
+    # using R functions
+    M2.cv <- update(M2, subset = train.ind)
+    # cross-validation residuals
+    M2.res <- hsbm$length[-train.ind] - # test observations
+      predict(M2.cv, newdata = hsbm[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe2[ii] <- mean(M2.res^2)
+    
+  }
+
+print(paste("MSPE for BIC (with interactions) is", mean(mspe2)))
+
+
+# LASSO (without interactions)
+
+## get data
+M1 <- lm(length~., data=dat)
+X1 <- model.matrix(M1)[,-1] ## get covariates
+y1 <- dat$length  ## get outcome
+
+## split into test and train
+ntrain1 <- 764 
+train_id1 <- 1:ntrain1
+X_train1 <- X1[train_id1,] 
+X_test1 <- X1[-train_id1,]
+y_train1 <- y1[train_id1]
+y_test1 <- y1[-train_id1]
+
+## fit with crossval
+cvfit_lasso1 <-  cv.glmnet(x=X_train1,y=y_train1,alpha = 1)
+
+## plot MSPEs by lambda
+plot(cvfit_lasso1, main= "M_lasso_ori")
+
+## estimated betas for minimum lambda 
+#coef(cvfit_lasso1, s = "lambda.min")## alternatively could use "lambda.1se"
+
+## predictions
+pred_lasso1 <- predict(cvfit_lasso1,newx=X_test1,  s="lambda.min")
+
+## MSPE in test set
+MSPE_lasso1 <- mean((pred_lasso1-y_test1)^2)
+
+print(paste("MSPE for LASSO (without interactions) is", MSPE_lasso1))
+
+
+# AIC (without interactions) (k-fold)
+
+M3 <- Maic_ori
+
+mspe3 <- rep(NA, Kfolds) # mspe for M3
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbm$index!=ii) # training observations
+  
+    # using R functions
+    M3.cv <- update(M3, subset = train.ind)
+    # cross-validation residuals
+    M3.res <- hsbm$length[-train.ind] - # test observations
+      predict(M3.cv, newdata = hsbm[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe3[ii] <- mean(M3.res^2)
+    
+  }
+
+print(paste("MSPE for AIC (without interactions) is", mean(mspe3)))
+
+
+# BIC (without interactions) (k-fold)
+
+M4 <- Mbic_ori
+
+mspe4 <- rep(NA, Kfolds) # mspe for M4
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbm$index!=ii) # training observations
+  
+    # using R functions
+    M4.cv <- update(M4, subset = train.ind)
+    # cross-validation residuals
+    M4.res <- hsbm$length[-train.ind] - # test observations
+      predict(M4.cv, newdata = hsbm[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe4[ii] <- mean(M4.res^2)
+    
+  }
+
+print(paste("MSPE for BIC (without interactions) is", mean(mspe4)))
+
+
+```
+
+
+## Models based on data containing only significant covariates.
+
+```{r}
+
+# AIC (without interactions) (k-fold)
+# only significant covariates
+
+M1sig <- MallSigAIC
+# number of cross-validation replications
+Kfolds <- 12
+
+ntot <- nrow(X_allSig) # total number of observations
+
+hsbmsig <- X_allSig[sample(ntot),] # permute rows
+hsbmsig$index <- rep(1:Kfolds,each=ntot/Kfolds)
+
+mspe1sig <- rep(NA, Kfolds) # mspe for M1
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbmsig$index!=ii) # training observations
+    
+    # using R functions
+    M1sig.cv <- update(M1sig, subset = train.ind)
+    # cross-validation residuals
+    M1sig.res <- hsbmsig$length[-train.ind] - # test observations
+      predict(M1sig.cv, newdata = hsbmsig[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe1sig[ii] <- mean(M1sig.res^2)
+    
+  }
+
+
+print(paste("MSPE for MallSigAIC is", mean(mspe1sig)))
+
+
+# AIC (with interactions) (k-fold)
+# only significant covariates
+
+M2sig <- MallSig_sqAIC
+
+mspe2sig <- rep(NA, Kfolds) # mspe for M1
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbmsig$index!=ii) # training observations
+    
+    # using R functions
+    M2sig.cv <- update(M2sig, subset = train.ind)
+    # cross-validation residuals
+    M2sig.res <- hsbmsig$length[-train.ind] - # test observations
+      predict(M2sig.cv, newdata = hsbmsig[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe2sig[ii] <- mean(M2sig.res^2)
+    
+  }
+
+
+print(paste("MSPE for MallSig_sqAIC is", mean(mspe2sig)))
+
+
+# BIC (without interactions) (k-fold)
+# only significant covariates
+
+M3sig <- MallSigBIC
+
+mspe3sig <- rep(NA, Kfolds) # mspe for M1
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbmsig$index!=ii) # training observations
+    
+    # using R functions
+    M3sig.cv <- update(M3sig, subset = train.ind)
+    # cross-validation residuals
+    M3sig.res <- hsbmsig$length[-train.ind] - # test observations
+      predict(M3sig.cv, newdata = hsbmsig[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe3sig[ii] <- mean(M3sig.res^2)
+    
+  }
+
+print(paste("MSPE for MallSigBIC is", mean(mspe3sig)))
+
+
+
+# BIC (with interactions) (k-fold)
+# only significant covariates
+
+M4sig <- MallSig_sqBIC
+
+mspe4sig <- rep(NA, Kfolds) # mspe for M1
+
+
+  for(ii in 1:Kfolds) {
+    if(ii%%100 == 0) message("ii = ", ii)
+    train.ind <- which(hsbmsig$index!=ii) # training observations
+    
+    # using R functions
+    M4sig.cv <- update(M4sig, subset = train.ind)
+    # cross-validation residuals
+    M4sig.res <- hsbmsig$length[-train.ind] - # test observations
+      predict(M4sig.cv, newdata = hsbmsig[-train.ind,]) # prediction with training data
+    # mspe for each model
+    mspe4sig[ii] <- mean(M4sig.res^2)
+    
+  }
+
+print(paste("MSPE for MallSig_sqBIC is", mean(mspe4sig)))
+
+
+# LASSO (with interactions) 
+# only significant covariates
+
+## get data
+M0sig <- lm(length~.^2, data= X_allSig)
+Xsig <- model.matrix(M0sig)[,-1] ## get covariates
+ysig <- X_allSig$length  ## get outcome
+
+## split into test and train
+ntrain.sig <- 764 
+train_id.sig <- 1:ntrain.sig
+X_train.sig <- Xsig[train_id.sig,] 
+X_test.sig <- Xsig[-train_id.sig,]
+y_train.sig <- ysig[train_id.sig]
+y_test.sig <- ysig[-train_id.sig]
+
+## fit with crossval
+cvfit_lasso.sig <-  cv.glmnet(x=X_train.sig,y=y_train.sig,alpha = 1)
+
+## plot MSPEs by lambda
+#plot(cvfit_lasso.sig, main= "MallSig_sqLASSO")
+
+## estimated betas for minimum lambda 
+#coef(cvfit_lasso.sig, s = "lambda.min")## alternatively could use "lambda.1se"
+
+## predictions
+pred_lasso.sig <- predict(cvfit_lasso.sig,newx=X_test.sig,  s="lambda.min")
+
+## MSPE in test set
+MSPE_lasso.sig <- mean((pred_lasso.sig-y_test.sig)^2)
+
+print(paste("MSPE for MallSig_sqLASSO is", MSPE_lasso.sig))
+
+
+# LASSO (without interactions) 
+# only significant covariates
+
+## get data
+M1sig <- lm(length~., data= X_allSig)
+X1sig <- model.matrix(M1sig)[,-1] ## get covariates
+y1sig <- X_allSig$length  ## get outcome
+
+## split into test and train
+ntrain1.sig <- 764 
+train_id1.sig <- 1:ntrain1.sig
+X_train1.sig <- X[train_id1.sig,] 
+X_test1.sig <- X[-train_id1.sig,]
+y_train1.sig <- y[train_id1.sig]
+y_test1.sig <- y[-train_id1.sig]
+
+## fit with crossval
+cvfit_lasso1.sig <-  cv.glmnet(x=X_train1.sig,y=y_train1.sig,alpha = 1)
+
+## plot MSPEs by lambda
+#plot(cvfit_lasso1.sig, main= "MallSigLASSO")
+
+## estimated betas for minimum lambda 
+#coef(cvfit_lasso1.sig, s = "lambda.min")## alternatively could use "lambda.1se"
+
+## predictions
+pred_lasso1.sig <- predict(cvfit_lasso1.sig,newx=X_test1.sig,  s="lambda.min")
+
+## MSPE in test set
+MSPE_lasso1.sig <- mean((pred_lasso1.sig-y_test1.sig)^2)
+
+print(paste("MSPE for MallSigLASSO is", MSPE_lasso1.sig))
+
+```
+
+
+#ANOVA
+
+```{r}
+
+#Original data
+
+# AIC (with interactions)
+Mfull_int <- lm(length~.^2, data=dat)
+anova(Mfull_int, Maic_sqr)
+
+# BIC (with interactions)
+anova(Mfull_int, Mbic_sqr)
+
+# LASSO (with interactions)
+anova(Mfull_int, M_lasso_sqr)
+
+# AIC (without interactions)
+Mfull_no_int <- lm(length~., data=dat)
+anova(Mfull_int, Maic_ori)
+
+# BIC (without interactions)
+anova(Mfull_no_int, Mbic_ori)
+
+# LASSO (without interactions)
+anova(Mfull_no_int, M_lasso_ori)
+
+# Data containing only significant covariates 
+
+# AIC (with interactions)
+Mfull_int_sig <- lm(length~.^2, data=X_allSig)
+anova(Mfull_int_sig, MallSig_sqAIC)
+
+# BIC (with interactions)
+anova(Mfull_int_sig, MallSig_sqBIC)
+
+# LASSO (with interactions)
+anova(Mfull_int_sig, MallSig_sqLASSO)
+
+# AIC (without interactions)
+Mfull_ori_sig <- lm(length~.^2, data=dat)
+anova(Mfull_ori_sig, MallSigAIC)
+
+# BIC (without interactions)
+anova(Mfull_ori_sig, MallSigBIC)
+
+# LASSO (without interactions)
+anova(Mfull_ori_sig, MallSigLASSO)
+
+```
+
+
